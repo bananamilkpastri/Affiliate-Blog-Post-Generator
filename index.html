@@ -651,6 +651,56 @@ Generate the JSON object now.`;
             setIsGenerating(false);
           }
         };
+        
+        const renderConnectionPanel = () => {
+          if (isLoadingBlogs) {
+            return (
+              <div className="flex items-center justify-center gap-3 text-slate-400 w-full">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="font-bold">Connecting...</span>
+              </div>
+            );
+          }
+          if (user && showConnectionSuccess) {
+            return (
+              <div className="flex items-center gap-3 text-green-400 w-full justify-center">
+                <CheckCircleIcon className="w-6 h-6" />
+                <span className="font-bold text-lg">Berhasil terhubung!</span>
+              </div>
+            );
+          }
+          if (user) {
+            return (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+                  <div className="text-sm text-slate-300 text-center sm:text-left">Logged in as: <span className="font-bold text-white">{user.name} ({user.email})</span></div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                      {blogs.length > 0 ? (
+                          <select value={selectedBlogId} onChange={(e) => setSelectedBlogId(e.target.value)} className="w-full bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 text-sm">
+                              <option value="" disabled>Select a blog to post to</option>
+                              {blogs.map(blog => <option key={blog.id} value={blog.id}>{blog.name}</option>)}
+                          </select>
+                      ) : <p className="text-sm text-amber-400">No blogs found on this account.</p>}
+                      <button onClick={handleLogout} className="font-semibold text-sky-400 hover:text-sky-300 text-sm flex-shrink-0">Logout</button>
+                  </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+              <div className="text-left">
+                <h3 className="font-bold text-white">Ready to publish?</h3>
+                <p className="text-sm text-slate-400">Connect to post directly to Blogger.</p>
+              </div>
+              <button onClick={handleLogin} disabled={!tokenClient} className="flex items-center justify-center gap-3 w-full sm:w-auto bg-white text-slate-800 font-bold py-2.5 px-4 rounded-lg transition-all duration-300 hover:bg-slate-200 disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0">
+                  <GoogleIcon className="w-5 h-5" /> Connect to Blogger
+              </button>
+            </div>
+          );
+        };
 
         const hasContent = imageFiles.length > 0 || productLink || productPrice || productDescription || generatedPost;
 
@@ -659,39 +709,10 @@ Generate the JSON object now.`;
             <Header />
             <main className="flex-grow container mx-auto px-4 py-8">
               <ApiKeyInput apiKey={apiKey} onApiKeySave={handleApiKeySave} />
-              {user ? (
-                  <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-500">
-                      {showConnectionSuccess ? (
-                          <div className="flex items-center gap-3 text-green-400 w-full justify-center">
-                              <CheckCircleIcon className="w-6 h-6" />
-                              <span className="font-bold">Berhasil terhubung!</span>
-                          </div>
-                      ) : (
-                          <>
-                              <div className="text-sm text-slate-300">Logged in as: <span className="font-bold text-white">{user.name} ({user.email})</span></div>
-                              <div className="flex items-center gap-3 w-full sm:w-auto">
-                                  {blogs.length > 0 ? (
-                                      <select value={selectedBlogId} onChange={(e) => setSelectedBlogId(e.target.value)} className="w-full bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 text-sm">
-                                          <option value="" disabled>Select a blog to post to</option>
-                                          {blogs.map(blog => <option key={blog.id} value={blog.id}>{blog.name}</option>)}
-                                      </select>
-                                  ) : <p className="text-sm text-amber-400">No blogs found on this account.</p>}
-                                  <button onClick={handleLogout} className="font-semibold text-sky-400 hover:text-sky-300 text-sm flex-shrink-0">Logout</button>
-                              </div>
-                          </>
-                      )}
-                  </div>
-              ) : (
-                  <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div className="text-left">
-                          <h3 className="font-bold text-white">Ready to publish?</h3>
-                          <p className="text-sm text-slate-400">Connect to post directly to Blogger.</p>
-                      </div>
-                      <button onClick={handleLogin} disabled={!tokenClient || isLoadingBlogs} className="flex items-center justify-center gap-3 w-full sm:w-auto bg-white text-slate-800 font-bold py-2.5 px-4 rounded-lg transition-all duration-300 hover:bg-slate-200 disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0">
-                          {isLoadingBlogs ? 'Connecting...' : <><GoogleIcon className="w-5 h-5" /> Connect to Blogger</>}
-                      </button>
-                  </div>
-              )}
+              
+              <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center justify-center min-h-[96px] transition-all duration-300">
+                {renderConnectionPanel()}
+              </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                 <div className="bg-slate-800/50 p-6 rounded-2xl shadow-2xl border border-slate-700 flex flex-col gap-6">
