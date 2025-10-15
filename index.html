@@ -275,7 +275,7 @@ Generate the JSON object now.`;
         };
 
         return (
-          <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <KeyIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
               <div className="flex-grow text-left">
@@ -290,6 +290,48 @@ Generate the JSON object now.`;
                 className="w-full sm:w-64 bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300"
               />
               <button onClick={handleSave} disabled={!localApiKey || localApiKey === initialApiKey} className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed flex-shrink-0">
+                {isSaved ? 'Saved!' : 'Save'}
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      const GoogleClientIdInput = ({ clientId: initialClientId, onClientIdSave }) => {
+        const [localClientId, setLocalClientId] = useState(initialClientId);
+        const [isSaved, setIsSaved] = useState(false);
+
+        useEffect(() => {
+          setLocalClientId(initialClientId);
+        }, [initialClientId]);
+
+        const handleSave = () => {
+          onClientIdSave(localClientId);
+          setIsSaved(true);
+          setTimeout(() => setIsSaved(false), 2000);
+        };
+
+        const handleIdChange = (e) => {
+          setLocalClientId(e.target.value);
+          if (isSaved) setIsSaved(false);
+        };
+
+        return (
+          <div className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <GoogleIcon className="w-5 h-5 flex-shrink-0" />
+              <div className="flex-grow text-left">
+                <label htmlFor="google-client-id" className="font-bold text-white">Google Client ID</label>
+                <p className="text-sm text-slate-400">Required to connect to Blogger. Saved in your browser.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                id="google-client-id" type="text" value={localClientId} onChange={handleIdChange}
+                placeholder="Enter your Google Client ID"
+                className="w-full sm:w-64 bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300"
+              />
+              <button onClick={handleSave} disabled={!localClientId || localClientId === initialClientId} className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed flex-shrink-0">
                 {isSaved ? 'Saved!' : 'Save'}
               </button>
             </div>
@@ -506,6 +548,7 @@ Generate the JSON object now.`;
       // ============== MAIN APP COMPONENT ==============
       const App = () => {
         const [apiKey, setApiKey] = useState('');
+        const [googleClientId, setGoogleClientId] = useState('');
         const [tokenClient, setTokenClient] = useState(null);
         const [user, setUser] = useState(null);
         const [blogs, setBlogs] = useState([]);
@@ -525,16 +568,21 @@ Generate the JSON object now.`;
         const [isGenerating, setIsGenerating] = useState(false);
         const [error, setError] = useState(null);
 
-        const GOOGLE_CLIENT_ID = '787862946919-v4127pqo7r3nggbageron49tvq5jopv1.apps.googleusercontent.com';
-
         useEffect(() => {
           const savedKey = localStorage.getItem('gemini-api-key');
           if (savedKey) setApiKey(savedKey);
+          const savedClientId = localStorage.getItem('google-client-id');
+          if (savedClientId) setGoogleClientId(savedClientId);
         }, []);
 
         const handleApiKeySave = (key) => {
           setApiKey(key);
           localStorage.setItem('gemini-api-key', key);
+        };
+
+        const handleClientIdSave = (id) => {
+          setGoogleClientId(id);
+          localStorage.setItem('google-client-id', id);
         };
 
         const handleStartNew = useCallback(() => {
@@ -561,16 +609,16 @@ Generate the JSON object now.`;
         
         useEffect(() => {
           const initializeGsi = () => {
-            if (window.google) {
+            if (window.google && googleClientId) {
               const client = window.google.accounts.oauth2.initTokenClient({
-                client_id: GOOGLE_CLIENT_ID,
+                client_id: googleClientId,
                 scope: 'https://www.googleapis.com/auth/blogger',
                 callback: async (tokenResponse) => {
                   if (tokenResponse && tokenResponse.access_token) {
                     setIsLoadingBlogs(true);
                     try {
                       const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } });
-                      if (!userInfoResponse.ok) throw new Error('Failed to fetch user info');
+                      if (!userInfoResponse.ok) throw new Error('Failed to fetch user info. Check if your Client ID is configured correctly with the right Authorized JavaScript origins.');
                       const userInfo = await userInfoResponse.json();
                       setUser({ ...tokenResponse, ...userInfo });
                       const userBlogs = await bloggerService.fetchUserBlogs(tokenResponse.access_token);
@@ -583,7 +631,7 @@ Generate the JSON object now.`;
                       setShowConnectionSuccess(true);
                     } catch (err) {
                       console.error("Auth/blog fetch failed:", err);
-                      setError("Could not sign in or fetch blogs.");
+                      setError("Could not sign in or fetch blogs. Please verify your Google Client ID and ensure you've added yourself as a test user in the Google Cloud OAuth consent screen.");
                       setUser(null);
                     } finally {
                       setIsLoadingBlogs(false);
@@ -599,7 +647,7 @@ Generate the JSON object now.`;
           } else {
             document.getElementById('gsi-client')?.addEventListener('load', initializeGsi);
           }
-        }, []);
+        }, [googleClientId]);
 
         const handleImageChange = useCallback(async (files) => {
           const newFiles = Array.from(files);
@@ -693,9 +741,9 @@ Generate the JSON object now.`;
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
               <div className="text-left">
                 <h3 className="font-bold text-white">Ready to publish?</h3>
-                <p className="text-sm text-slate-400">Connect to post directly to Blogger.</p>
+                <p className="text-sm text-slate-400">{googleClientId ? 'Connect to post directly to Blogger.' : 'First, save your Google Client ID above.'}</p>
               </div>
-              <button onClick={handleLogin} disabled={!tokenClient} className="flex items-center justify-center gap-3 w-full sm:w-auto bg-white text-slate-800 font-bold py-2.5 px-4 rounded-lg transition-all duration-300 hover:bg-slate-200 disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0">
+              <button onClick={handleLogin} disabled={!tokenClient || !googleClientId} className="flex items-center justify-center gap-3 w-full sm:w-auto bg-white text-slate-800 font-bold py-2.5 px-4 rounded-lg transition-all duration-300 hover:bg-slate-200 disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0">
                   <GoogleIcon className="w-5 h-5" /> Connect to Blogger
               </button>
             </div>
@@ -708,7 +756,10 @@ Generate the JSON object now.`;
           <div className="flex flex-col min-h-screen bg-slate-900 text-slate-200 font-sans">
             <Header />
             <main className="flex-grow container mx-auto px-4 py-8">
-              <ApiKeyInput apiKey={apiKey} onApiKeySave={handleApiKeySave} />
+              <div className="space-y-4 mb-8">
+                <ApiKeyInput apiKey={apiKey} onApiKeySave={handleApiKeySave} />
+                <GoogleClientIdInput clientId={googleClientId} onClientIdSave={handleClientIdSave} />
+              </div>
               
               <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center justify-center min-h-[96px] transition-all duration-300">
                 {renderConnectionPanel()}
@@ -728,7 +779,7 @@ Generate the JSON object now.`;
                   <TextInput id="productLink" label="Product Link" placeholder="https://example.com/product-page" value={productLink} onChange={(e) => setProductLink(e.target.value)} disabled={isGenerating} />
                   <TextAreaInput id="productDescription" label="About this item" placeholder="Enter key features..." value={productDescription} onChange={(e) => setProductDescription(e.target.value)} disabled={isGenerating} />
                   <TextInput id="productPrice" label="Product Price (Optional)" placeholder="e.g., $99.99" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} disabled={isGenerating} />
-                  {error && <p className="text-red-400 text-sm">{error}</p>}
+                  {error && <p className="text-red-400 text-sm text-center">{error}</p>}
                   <button onClick={handleSubmit} disabled={isGenerating || !apiKey || imageFiles.length === 0 || !productLink} className="flex items-center justify-center gap-2 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed disabled:text-slate-400 shadow-lg hover:shadow-sky-500/50">
                     {isGenerating ? 'Generating...' : <><SparklesIcon /> Generate Post</>}
                   </button>
@@ -747,8 +798,8 @@ Generate the JSON object now.`;
                       ) : (
                           <div className="mt-6 border-t border-slate-700 pt-4">
                               <h3 className="text-lg font-semibold text-slate-300 mb-2">Publish to Blogger</h3>
-                              <p className="text-sm text-slate-400 mb-4">Connect your account to publish this post.</p>
-                              <button onClick={handleLogin} disabled={!tokenClient || isLoadingBlogs} className="flex items-center justify-center w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600">
+                              <p className="text-sm text-slate-400 mb-4">{googleClientId ? 'Connect your account to publish this post.' : 'Please save your Google Client ID to enable publishing.'}</p>
+                              <button onClick={handleLogin} disabled={!tokenClient || isLoadingBlogs || !googleClientId} className="flex items-center justify-center w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600">
                                   {isLoadingBlogs ? 'Connecting...' : 'Connect to Publish'}
                               </button>
                           </div>
