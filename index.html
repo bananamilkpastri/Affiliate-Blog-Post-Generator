@@ -544,6 +544,41 @@ Generate the JSON object now.`;
         );
       };
 
+      const RedirectUriHelper = () => {
+        const [redirectUri, setRedirectUri] = useState('');
+        const [copied, setCopied] = useState(false);
+
+        useEffect(() => {
+          const uri = `${window.location.origin}${window.location.pathname}`;
+          setRedirectUri(uri);
+        }, []);
+
+        const handleCopy = () => {
+          if (redirectUri) {
+            navigator.clipboard.writeText(redirectUri).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2500);
+            });
+          }
+        };
+
+        if (!redirectUri) return null;
+
+        return (
+          <div className="bg-amber-900/30 border border-amber-500/50 rounded-lg p-3 mt-4 text-sm">
+            <p className="font-bold text-amber-200 mb-2">Bantuan Konfigurasi</p>
+            <p className="mb-2 text-amber-300">Jika jendela login Google tertutup sendiri, salin URL lengkap ini:</p>
+            <div className="flex items-center gap-2 bg-slate-800/60 p-2 rounded-md">
+              <code className="break-all flex-grow font-mono text-white">{redirectUri}</code>
+              <button onClick={handleCopy} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-1 px-3 rounded text-xs flex-shrink-0 transition-colors">
+                {copied ? 'Tersalin!' : 'Salin'}
+              </button>
+            </div>
+            <p className="mt-2 text-amber-300">Buka <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-white">Google Cloud Credentials</a>, edit Client ID Anda, dan tempel URL ini ke dalam daftar **"Authorized redirect URIs"**. Tunggu 2 menit lalu segarkan halaman ini.</p>
+          </div>
+        );
+      };
+
 
       // ============== MAIN APP COMPONENT ==============
       const App = () => {
@@ -739,13 +774,16 @@ Generate the JSON object now.`;
 
           return (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
-              <div className="text-left">
+              <div className="text-left flex-grow w-full">
                 <h3 className="font-bold text-white">Ready to publish?</h3>
                 <p className="text-sm text-slate-400">{googleClientId ? 'Connect to post directly to Blogger.' : 'First, save your Google Client ID above.'}</p>
+                {googleClientId && <RedirectUriHelper />}
               </div>
-              <button onClick={handleLogin} disabled={!tokenClient || !googleClientId} className="flex items-center justify-center gap-3 w-full sm:w-auto bg-white text-slate-800 font-bold py-2.5 px-4 rounded-lg transition-all duration-300 hover:bg-slate-200 disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0">
-                  <GoogleIcon className="w-5 h-5" /> Connect to Blogger
-              </button>
+              <div className="flex-shrink-0 w-full sm:w-auto">
+                <button onClick={handleLogin} disabled={!tokenClient || !googleClientId} className="flex items-center justify-center gap-3 w-full sm:w-auto bg-white text-slate-800 font-bold py-2.5 px-4 rounded-lg transition-all duration-300 hover:bg-slate-200 disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0">
+                    <GoogleIcon className="w-5 h-5" /> Connect to Blogger
+                </button>
+              </div>
             </div>
           );
         };
