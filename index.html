@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -92,6 +93,14 @@
           <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
         </svg>
       );
+
+      const CheckCircleIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      );
+
 
       // ============== SERVICES ==============
       const bloggerService = {
@@ -502,6 +511,7 @@ Generate the JSON object now.`;
         const [blogs, setBlogs] = useState([]);
         const [selectedBlogId, setSelectedBlogId] = useState('');
         const [isLoadingBlogs, setIsLoadingBlogs] = useState(false);
+        const [showConnectionSuccess, setShowConnectionSuccess] = useState(false);
         const [imageFiles, setImageFiles] = useState([]);
         const [imageDataUrls, setImageDataUrls] = useState([]);
         const [productLink, setProductLink] = useState('');
@@ -511,6 +521,7 @@ Generate the JSON object now.`;
         const [generatedTags, setGeneratedTags] = useState([]);
         const [metaTitle, setMetaTitle] = useState('');
         const [metaDescription, setMetaDescription] = useState('');
+        const [postTitle, setPostTitle] = useState('');
         const [isGenerating, setIsGenerating] = useState(false);
         const [error, setError] = useState(null);
 
@@ -527,7 +538,7 @@ Generate the JSON object now.`;
         };
 
         const handleStartNew = useCallback(() => {
-          setImageFiles([]); setImageDataUrls([]); setProductLink(''); setProductPrice(''); setProductDescription(''); setGeneratedPost(''); setGeneratedTags([]); setMetaTitle(''); setMetaDescription(''); setError(null); setIsGenerating(false);
+          setImageFiles([]); setImageDataUrls([]); setProductLink(''); setProductPrice(''); setProductDescription(''); setGeneratedPost(''); setGeneratedTags([]); setMetaTitle(''); setMetaDescription(''); setPostTitle(''); setError(null); setIsGenerating(false);
         }, []);
         
         const handleLogin = useCallback(() => { if (tokenClient) tokenClient.requestAccessToken(); }, [tokenClient]);
@@ -539,6 +550,15 @@ Generate the JSON object now.`;
           }
         }, [user, handleStartNew]);
 
+        useEffect(() => {
+          if (showConnectionSuccess) {
+            const timer = setTimeout(() => {
+              setShowConnectionSuccess(false);
+            }, 3000); // Hide after 3 seconds
+            return () => clearTimeout(timer);
+          }
+        }, [showConnectionSuccess]);
+        
         useEffect(() => {
           const initializeGsi = () => {
             if (window.google) {
@@ -560,6 +580,7 @@ Generate the JSON object now.`;
                       } else {
                         setSelectedBlogId('');
                       }
+                      setShowConnectionSuccess(true);
                     } catch (err) {
                       console.error("Auth/blog fetch failed:", err);
                       setError("Could not sign in or fetch blogs.");
@@ -610,10 +631,17 @@ Generate the JSON object now.`;
         const handleSubmit = async () => {
           if (!apiKey) { setError('Please set your Gemini API Key first.'); return; }
           if (imageFiles.length === 0 || !productLink) { setError('Please provide an image and a product link.'); return; }
-          setIsGenerating(true); setError(null); setGeneratedPost(''); setGeneratedTags([]); setMetaTitle(''); setMetaDescription('');
+          setIsGenerating(true); setError(null); setGeneratedPost(''); setGeneratedTags([]); setMetaTitle(''); setMetaDescription(''); setPostTitle('');
           try {
             const imageParts = imageFiles.map((file, index) => ({ mimeType: file.type, data: imageDataUrls[index]?.split(',')[1] || '' }));
             const { post, tags, metaTitle, metaDescription } = await geminiService.generateBlogPost(apiKey, imageParts, productLink, productPrice, productDescription);
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(post, 'text/html');
+            const h2 = doc.querySelector('h2');
+            const extractedTitle = h2 ? h2.textContent.trim() : metaTitle;
+            setPostTitle(extractedTitle);
+
             const finalPost = injectImagesIntoHtml(post, imageDataUrls);
             setGeneratedPost(finalPost); setGeneratedTags(tags); setMetaTitle(metaTitle); setMetaDescription(metaDescription);
           } catch (err) {
@@ -632,17 +660,26 @@ Generate the JSON object now.`;
             <main className="flex-grow container mx-auto px-4 py-8">
               <ApiKeyInput apiKey={apiKey} onApiKeySave={handleApiKeySave} />
               {user ? (
-                  <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-                       <div className="text-sm text-slate-300">Logged in as: <span className="font-bold text-white">{user.name} ({user.email})</span></div>
-                       <div className="flex items-center gap-3 w-full sm:w-auto">
-                          {blogs.length > 0 ? (
-                              <select value={selectedBlogId} onChange={(e) => setSelectedBlogId(e.target.value)} className="w-full bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 text-sm">
-                                  <option value="" disabled>Select a blog to post to</option>
-                                  {blogs.map(blog => <option key={blog.id} value={blog.id}>{blog.name}</option>)}
-                              </select>
-                          ) : <p className="text-sm text-amber-400">No blogs found on this account.</p>}
-                          <button onClick={handleLogout} className="font-semibold text-sky-400 hover:text-sky-300 text-sm flex-shrink-0">Logout</button>
-                       </div>
+                  <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-500">
+                      {showConnectionSuccess ? (
+                          <div className="flex items-center gap-3 text-green-400 w-full justify-center">
+                              <CheckCircleIcon className="w-6 h-6" />
+                              <span className="font-bold">Berhasil terhubung!</span>
+                          </div>
+                      ) : (
+                          <>
+                              <div className="text-sm text-slate-300">Logged in as: <span className="font-bold text-white">{user.name} ({user.email})</span></div>
+                              <div className="flex items-center gap-3 w-full sm:w-auto">
+                                  {blogs.length > 0 ? (
+                                      <select value={selectedBlogId} onChange={(e) => setSelectedBlogId(e.target.value)} className="w-full bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 text-sm">
+                                          <option value="" disabled>Select a blog to post to</option>
+                                          {blogs.map(blog => <option key={blog.id} value={blog.id}>{blog.name}</option>)}
+                                      </select>
+                                  ) : <p className="text-sm text-amber-400">No blogs found on this account.</p>}
+                                  <button onClick={handleLogout} className="font-semibold text-sky-400 hover:text-sky-300 text-sm flex-shrink-0">Logout</button>
+                              </div>
+                          </>
+                      )}
                   </div>
               ) : (
                   <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -685,7 +722,7 @@ Generate the JSON object now.`;
                   
                   {generatedPost && (
                       user ? (
-                          <BloggerPublisher accessToken={user.access_token} blogId={selectedBlogId} title={metaTitle} content={generatedPost} tags={generatedTags} />
+                          <BloggerPublisher accessToken={user.access_token} blogId={selectedBlogId} title={postTitle} content={generatedPost} tags={generatedTags} />
                       ) : (
                           <div className="mt-6 border-t border-slate-700 pt-4">
                               <h3 className="text-lg font-semibold text-slate-300 mb-2">Publish to Blogger</h3>
