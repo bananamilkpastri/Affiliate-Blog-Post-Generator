@@ -645,36 +645,56 @@ Generate the JSON object now.`;
         useEffect(() => {
           const initializeGsi = () => {
             if (window.google && googleClientId) {
-              const client = window.google.accounts.oauth2.initTokenClient({
-                client_id: googleClientId,
-                scope: 'https://www.googleapis.com/auth/blogger',
-                callback: async (tokenResponse) => {
-                  if (tokenResponse && tokenResponse.access_token) {
-                    setIsLoadingBlogs(true);
-                    try {
-                      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } });
-                      if (!userInfoResponse.ok) throw new Error('Failed to fetch user info. Check if your Client ID is configured correctly with the right Authorized JavaScript origins.');
-                      const userInfo = await userInfoResponse.json();
-                      setUser({ ...tokenResponse, ...userInfo });
-                      const userBlogs = await bloggerService.fetchUserBlogs(tokenResponse.access_token);
-                      setBlogs(userBlogs);
-                      if (userBlogs.length > 0) {
-                        setSelectedBlogId(userBlogs[0].id);
-                      } else {
-                        setSelectedBlogId('');
+              try {
+                const client = window.google.accounts.oauth2.initTokenClient({
+                  client_id: googleClientId,
+                  scope: 'https://www.googleapis.com/auth/blogger',
+                  callback: async (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                      setError(null); // Clear previous errors on success
+                      setIsLoadingBlogs(true);
+                      try {
+                        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } });
+                        if (!userInfoResponse.ok) throw new Error('Failed to fetch user info.');
+                        const userInfo = await userInfoResponse.json();
+                        setUser({ ...tokenResponse, ...userInfo });
+                        const userBlogs = await bloggerService.fetchUserBlogs(tokenResponse.access_token);
+                        setBlogs(userBlogs);
+                        if (userBlogs.length > 0) {
+                          setSelectedBlogId(userBlogs[0].id);
+                        } else {
+                          setSelectedBlogId('');
+                        }
+                        setShowConnectionSuccess(true);
+                      } catch (err) {
+                        console.error("Auth/blog fetch failed:", err);
+                        setError("Could not fetch blogs. Please verify your Google Client ID and ensure you've added yourself as a test user in the Google Cloud OAuth consent screen.");
+                        setUser(null);
+                      } finally {
+                        setIsLoadingBlogs(false);
                       }
-                      setShowConnectionSuccess(true);
-                    } catch (err) {
-                      console.error("Auth/blog fetch failed:", err);
-                      setError("Could not sign in or fetch blogs. Please verify your Google Client ID and ensure you've added yourself as a test user in the Google Cloud OAuth consent screen.");
-                      setUser(null);
-                    } finally {
-                      setIsLoadingBlogs(false);
                     }
+                  },
+                  error_callback: (error) => {
+                    console.error('Google Sign-In Error:', error);
+                    let errorMessage = `Login failed. GSI Error: ${error.type}.`;
+                    if (error.type === 'popup_closed_by_user') {
+                        errorMessage = 'Login cancelled. The sign-in window was closed.';
+                    } else if (error.type === 'origin_mismatch' || error.type === 'invalid_client') {
+                        errorMessage = "Login failed due to a configuration error. Please double-check that your Google Client ID is correct and that your site's URL is listed under 'Authorized JavaScript origins' in the Google Cloud Console.";
+                    } else {
+                        errorMessage = "An unexpected error occurred during login. Please check the browser console for more details.";
+                    }
+                    setError(errorMessage);
+                    setUser(null);
+                    setIsLoadingBlogs(false);
                   }
-                },
-              });
-              setTokenClient(client);
+                });
+                setTokenClient(client);
+              } catch (e) {
+                 console.error("Error initializing GSI client:", e);
+                 setError("Failed to initialize Google Sign-In. The Client ID might be malformed.");
+              }
             }
           };
           if (typeof window.google !== 'undefined') {
@@ -802,6 +822,7 @@ Generate the JSON object now.`;
               <div className="mb-8 p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center justify-center min-h-[96px] transition-all duration-300">
                 {renderConnectionPanel()}
               </div>
+              {error && !user && <p className="text-red-400 text-sm text-center mb-4 bg-red-900/20 border border-red-500/50 rounded-lg p-3">{error}</p>}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                 <div className="bg-slate-800/50 p-6 rounded-2xl shadow-2xl border border-slate-700 flex flex-col gap-6">
@@ -817,7 +838,7 @@ Generate the JSON object now.`;
                   <TextInput id="productLink" label="Product Link" placeholder="https://example.com/product-page" value={productLink} onChange={(e) => setProductLink(e.target.value)} disabled={isGenerating} />
                   <TextAreaInput id="productDescription" label="About this item" placeholder="Enter key features..." value={productDescription} onChange={(e) => setProductDescription(e.target.value)} disabled={isGenerating} />
                   <TextInput id="productPrice" label="Product Price (Optional)" placeholder="e.g., $99.99" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} disabled={isGenerating} />
-                  {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+                  {error && isGenerating && <p className="text-red-400 text-sm text-center">{error}</p>}
                   <button onClick={handleSubmit} disabled={isGenerating || !apiKey || imageFiles.length === 0 || !productLink} className="flex items-center justify-center gap-2 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed disabled:text-slate-400 shadow-lg hover:shadow-sky-500/50">
                     {isGenerating ? 'Generating...' : <><SparklesIcon /> Generate Post</>}
                   </button>
