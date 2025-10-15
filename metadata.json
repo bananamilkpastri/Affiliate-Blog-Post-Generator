@@ -1,0 +1,5 @@
+{
+  "name": "Affiliate Blog Post Generator",
+  "description": "An AI-powered application that generates engaging affiliate marketing blog posts from a product image, link, and price.",
+  "requestFramePermissions": []
+}
