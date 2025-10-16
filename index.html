@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Affiliate Blog Post Generator</title>
+    <title>Generator Postingan Blog Afiliasi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script id="gsi-client" src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- Babel Standalone for in-browser JSX transpilation -->
@@ -101,6 +100,13 @@
         </svg>
       );
 
+      const EyeIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      );
+
 
       // ============== SERVICES ==============
       const bloggerService = {
@@ -154,7 +160,7 @@
       const geminiService = {
           generateBlogPost: async (apiKey, imageDataArray, productLink, productPrice, productDescription) => {
             
-            const generatePrompt = (productLink, productPrice, productDescription) => {
+            const generatePrompt = (productLink, productPrice, productDescription, imageCount) => {
               const productInfoParts = [`- Purchase Link: ${productLink}`];
               if (productPrice) productInfoParts.push(`- Price: ${productPrice}`);
               if (productDescription) productInfoParts.push(`- About This Item: ${productDescription}`);
@@ -162,17 +168,21 @@
 
               const priceInstruction = productPrice ? `Mention the price: ${productPrice}, and frame it as a great value.` : `Do not mention a price unless it is included in the 'About This Item' description.`;
 
+              const imagePlacementInstruction = () => {
+                if (imageCount <= 1) {
+                  return "Place the placeholder `[HERO_IMAGE]` where the main product image should appear, typically near the top.";
+                }
+                const additionalPlaceholders = Array.from({ length: imageCount - 1 }, (_, i) => `\`[IMAGE_${i + 2}]\``).join(', ');
+                return `Analyze all provided images. Insert the placeholder \`[HERO_IMAGE]\` for the primary image near the top. For each subsequent image, insert a unique, numbered placeholder (e.g., ${additionalPlaceholders}) at a contextually relevant point within the text. Place these placeholders between paragraphs to illustrate features or add visual breaks. DO NOT group image placeholders together.`;
+              };
+
               return `You are an expert affiliate marketing copywriter and SEO specialist. You will receive several product images and some details. Your goal is to generate a complete JSON object containing a blog post, meta information, and tags.
 
 **Instructions for the JSON object:**
 1.  **JSON Structure:** Your entire response must be a single JSON object with four keys: "blogPostHtml", "tags", "metaTitle", and "metaDescription".
 2.  **blogPostHtml (string):**
     *   This value must be a valid HTML snippet. DO NOT include \`<html>\`, \`<head>\`, or \`<body>\` tags.
-    *   **Image Placement:**
-        *   Analyze all provided images to understand the product.
-        *   Insert the placeholder \`[HERO_IMAGE]\` where the main hero image should appear. This should usually be near the top.
-        *   If there are additional images (more than one total), insert the placeholder \`[IMAGE_GALLERY]\` where a responsive grid gallery of the remaining images should appear. This is typically after the introduction.
-        *   If there is only one image, only use the \`[HERO_IMAGE]\` placeholder. Do not use \`[IMAGE_GALLERY]\`.
+    *   **Image Placement:** ${imagePlacementInstruction()}
     *   **Content:**
         *   Start the HTML directly with an \`<h2>\` tag for a catchy, compelling title.
         *   Use \`<p>\` tags for the blog post's body paragraphs. The tone should be enthusiastic and trustworthy.
@@ -195,7 +205,7 @@ Generate the JSON object now.`;
             try {
                 const ai = new GoogleGenAI({ apiKey });
                 const imageParts = imageDataArray.map(imageData => ({ inlineData: { mimeType: imageData.mimeType, data: imageData.data } }));
-                const textPart = { text: generatePrompt(productLink, productPrice, productDescription) };
+                const textPart = { text: generatePrompt(productLink, productPrice, productDescription, imageParts.length) };
                 const parts = [...imageParts, textPart];
 
                 const response = await ai.models.generateContent({
@@ -240,7 +250,7 @@ Generate the JSON object now.`;
                 <SparklesIcon className="w-6 h-6 text-sky-400" />
               </div>
               <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-indigo-500">
-                Affiliate Blog Post Generator
+                Generator Postingan Blog Afiliasi
               </h1>
             </div>
           </div>
@@ -250,7 +260,7 @@ Generate the JSON object now.`;
       const Footer = () => (
         <footer className="bg-slate-900/50 border-t border-slate-700 mt-8">
           <div className="container mx-auto px-4 py-4 text-center text-slate-500 text-sm">
-            <p>Powered by Gemini AI. Created for affiliate marketers.</p>
+            <p>Didukung oleh Gemini AI. Dibuat untuk pemasar afiliasi.</p>
           </div>
         </footer>
       );
@@ -279,18 +289,18 @@ Generate the JSON object now.`;
             <div className="flex items-center gap-3">
               <KeyIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
               <div className="flex-grow text-left">
-                <label htmlFor="gemini-api-key" className="font-bold text-white">Gemini API Key</label>
-                <p className="text-sm text-slate-400">Required to generate content. Your key is saved in your browser.</p>
+                <label htmlFor="gemini-api-key" className="font-bold text-white">Kunci API Gemini</label>
+                <p className="text-sm text-slate-400">Diperlukan untuk membuat konten. Kunci Anda disimpan di browser Anda.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <input
                 id="gemini-api-key" type="password" value={localApiKey} onChange={handleKeyChange}
-                placeholder="Enter your Gemini API Key"
+                placeholder="Masukkan Kunci API Gemini Anda"
                 className="w-full sm:w-64 bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300"
               />
               <button onClick={handleSave} disabled={!localApiKey || localApiKey === initialApiKey} className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed flex-shrink-0">
-                {isSaved ? 'Saved!' : 'Save'}
+                {isSaved ? 'Tersimpan!' : 'Simpan'}
               </button>
             </div>
           </div>
@@ -321,18 +331,18 @@ Generate the JSON object now.`;
             <div className="flex items-center gap-3">
               <GoogleIcon className="w-5 h-5 flex-shrink-0" />
               <div className="flex-grow text-left">
-                <label htmlFor="google-client-id" className="font-bold text-white">Google Client ID</label>
-                <p className="text-sm text-slate-400">Required to connect to Blogger. Saved in your browser.</p>
+                <label htmlFor="google-client-id" className="font-bold text-white">ID Klien Google OAuth (untuk Blogger)</label>
+                <p className="text-sm text-slate-400">Diperlukan untuk terhubung ke Blogger. Disimpan di browser Anda.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <input
                 id="google-client-id" type="text" value={localClientId} onChange={handleIdChange}
-                placeholder="Enter your Google Client ID"
+                placeholder="Masukkan ID Klien Google Anda"
                 className="w-full sm:w-64 bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300"
               />
               <button onClick={handleSave} disabled={!localClientId || localClientId === initialClientId} className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed flex-shrink-0">
-                {isSaved ? 'Saved!' : 'Save'}
+                {isSaved ? 'Tersimpan!' : 'Simpan'}
               </button>
             </div>
           </div>
@@ -363,8 +373,8 @@ Generate the JSON object now.`;
         return (
             <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
-                    <label className="text-slate-300 font-semibold">Product Images</label>
-                    {imageUrls.length > 0 && !disabled && <button onClick={onClearImages} className="text-sm text-sky-400 hover:text-sky-300 font-semibold">Clear</button>}
+                    <label className="text-slate-300 font-semibold">Gambar Produk</label>
+                    {imageUrls.length > 0 && !disabled && <button onClick={onClearImages} className="text-sm text-sky-400 hover:text-sky-300 font-semibold">Hapus</button>}
                 </div>
                 <div onClick={handleClick} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop} className={`relative w-full min-h-64 border-2 border-dashed rounded-lg flex items-center justify-center transition-colors duration-300 ${disabled ? 'cursor-not-allowed bg-slate-700/50 border-slate-600' : 'cursor-pointer hover:border-sky-500 hover:bg-slate-700/50'} ${isDragging ? 'border-sky-500 bg-slate-700/50' : 'border-slate-600'}`}>
                     <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" disabled={disabled} />
@@ -374,9 +384,9 @@ Generate the JSON object now.`;
                         </div>
                     ) : (
                         <div className="text-center text-slate-500 p-4 pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            <p className="mt-2 font-semibold">Click or drag & drop images here</p>
-                            <p className="text-xs">PNG, JPG, WEBP up to 10MB</p>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <p className="mt-2 font-semibold">Klik atau seret & lepas gambar di sini</p>
+                            <p className="text-xs">PNG, JPG, WEBP hingga 10MB</p>
                         </div>
                     )}
                 </div>
@@ -393,7 +403,7 @@ Generate the JSON object now.`;
 
       const TextAreaInput = ({ id, label, value, onChange, placeholder, disabled, rows = 4 }) => (
         <div className="flex flex-col gap-2">
-            <label htmlFor={id} className="text-slate-300 font-semibold">{label}</label>
+            {label && <label htmlFor={id} className="text-slate-300 font-semibold">{label}</label>}
             <textarea id={id} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} rows={rows} className="bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed resize-y" />
         </div>
       );
@@ -428,7 +438,7 @@ Generate the JSON object now.`;
                 {!isLoading && !postContent && (
                     <div className="flex flex-col items-center justify-center h-full text-slate-500">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        <p className="mt-2 text-center">Your generated blog post will appear here.</p>
+                        <p className="mt-2 text-center">Postingan blog yang Anda buat akan muncul di sini.</p>
                     </div>
                 )}
                 {postContent && !isLoading && (
@@ -462,9 +472,9 @@ Generate the JSON object now.`;
         return (
             <div className="mt-6 border-t border-slate-700 pt-4">
                 <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-lg font-semibold text-slate-300">Suggested Tags</h3>
+                    <h3 className="text-lg font-semibold text-slate-300">Tag yang Disarankan</h3>
                     <button onClick={handleCopy} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg transition-colors duration-200 text-sm" aria-label="Copy tags to clipboard">
-                        {copied ? <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</> : <><ClipboardIcon className="h-4 w-4" /> Copy</>}
+                        {copied ? <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Disalin!</> : <><ClipboardIcon className="h-4 w-4" /> Salin</>}
                     </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -494,15 +504,15 @@ Generate the JSON object now.`;
         return (
             <div className="mt-6 border-t border-slate-700 pt-4">
                 <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-lg font-semibold text-slate-300">SEO Meta Preview</h3>
+                    <h3 className="text-lg font-semibold text-slate-300">Pratinjau Meta SEO</h3>
                     <button onClick={handleCopy} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg transition-colors duration-200 text-sm" aria-label="Copy meta title and description">
-                        {copied ? <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</> : <><ClipboardIcon className="h-4 w-4" /> Copy</>}
+                        {copied ? <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Disalin!</> : <><ClipboardIcon className="h-4 w-4" /> Salin</>}
                     </button>
                 </div>
                 <div className="bg-slate-900/70 p-4 rounded-lg border border-slate-700">
                     <span className="text-sm text-slate-400">{displayLink}</span>
-                    <h4 className="text-blue-400 text-xl truncate font-medium">{title || 'Your Meta Title Will Appear Here'}</h4>
-                    <p className="text-slate-400 text-sm">{description || 'Your meta description will appear here...'}</p>
+                    <h4 className="text-blue-400 text-xl truncate font-medium">{title || 'Judul Meta Anda Akan Muncul di Sini'}</h4>
+                    <p className="text-slate-400 text-sm">{description || 'Deskripsi meta Anda akan muncul di sini...'}</p>
                 </div>
             </div>
         );
@@ -513,18 +523,18 @@ Generate the JSON object now.`;
         const [publishStatus, setPublishStatus] = useState(null);
         const handlePublish = async () => {
             if (!accessToken || !blogId || !title || !content) {
-                setPublishStatus({ message: 'Missing required content to publish.', type: 'error' });
+                setPublishStatus({ message: 'Konten yang diperlukan untuk publikasi tidak lengkap.', type: 'error' });
                 return;
             }
             setIsPublishing(true);
             setPublishStatus(null);
             try {
                 await bloggerService.publishPost(accessToken, blogId, title, content, tags);
-                setPublishStatus({ message: 'Successfully published to Blogger!', type: 'success' });
+                setPublishStatus({ message: 'Berhasil dipublikasikan ke Blogger!', type: 'success' });
             } catch (error) {
-                console.error('Failed to publish to Blogger:', error);
-                const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-                setPublishStatus({ message: `Failed to publish: ${errorMessage}`, type: 'error' });
+                console.error('Gagal mempublikasikan ke Blogger:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui.';
+                setPublishStatus({ message: `Gagal mempublikasikan: ${errorMessage}`, type: 'error' });
             } finally {
                 setIsPublishing(false);
             }
@@ -532,11 +542,11 @@ Generate the JSON object now.`;
         if (!content) return null;
         return (
             <div className="mt-6 border-t border-slate-700 pt-4">
-                <h3 className="text-lg font-semibold text-slate-300 mb-3">Publish to Blogger</h3>
-                 {!blogId && <p className="text-sm text-amber-400 mb-4">Please select a blog from the list above to enable publishing.</p>}
+                <h3 className="text-lg font-semibold text-slate-300 mb-3">Publikasikan ke Blogger</h3>
+                 {!blogId && <p className="text-sm text-amber-400 mb-4">Silakan pilih blog dari daftar di atas untuk mengaktifkan publikasi.</p>}
                 <div className="space-y-4">
                     <button onClick={handlePublish} disabled={isPublishing || !blogId} className="flex items-center justify-center w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed">
-                        {isPublishing ? 'Publishing...' : 'Publish to Blogger'}
+                        {isPublishing ? 'Mempublikasikan...' : 'Publikasikan ke Blogger'}
                     </button>
                     {publishStatus && <p className={`text-sm text-center font-semibold ${publishStatus.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>{publishStatus.message}</p>}
                 </div>
@@ -602,6 +612,8 @@ Generate the JSON object now.`;
         const [postTitle, setPostTitle] = useState('');
         const [isGenerating, setIsGenerating] = useState(false);
         const [error, setError] = useState(null);
+        const [activeTab, setActiveTab] = useState('generator');
+        const [quickPostText, setQuickPostText] = useState('');
 
         useEffect(() => {
           const savedKey = localStorage.getItem('gemini-api-key');
@@ -621,7 +633,7 @@ Generate the JSON object now.`;
         };
 
         const handleStartNew = useCallback(() => {
-          setImageFiles([]); setImageDataUrls([]); setProductLink(''); setProductPrice(''); setProductDescription(''); setGeneratedPost(''); setGeneratedTags([]); setMetaTitle(''); setMetaDescription(''); setPostTitle(''); setError(null); setIsGenerating(false);
+          setImageFiles([]); setImageDataUrls([]); setProductLink(''); setProductPrice(''); setProductDescription(''); setGeneratedPost(''); setGeneratedTags([]); setMetaTitle(''); setMetaDescription(''); setPostTitle(''); setError(null); setIsGenerating(false); setQuickPostText(''); setActiveTab('generator');
         }, []);
         
         const handleLogin = useCallback(() => { if (tokenClient) tokenClient.requestAccessToken(); }, [tokenClient]);
@@ -718,22 +730,30 @@ Generate the JSON object now.`;
         const injectImagesIntoHtml = (html, urls) => {
             if (!urls || urls.length === 0) return html;
             let finalHtml = html;
+        
+            // Handle Hero Image
             if (finalHtml.includes('[HERO_IMAGE]')) {
                 const heroImageHtml = `<img src="${urls[0]}" alt="Main product image" style="width: 100%; height: auto; border-radius: 12px; margin-bottom: 1.5rem;" />`;
                 finalHtml = finalHtml.replace('[HERO_IMAGE]', heroImageHtml);
             }
-            if (finalHtml.includes('[IMAGE_GALLERY]') && urls.length > 1) {
-                const galleryImages = urls.slice(1);
-                const galleryImagesHtml = galleryImages.map((url, index) => `<img src="${url}" alt="Product gallery image ${index + 1}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />`).join('');
-                const galleryContainerHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem;">${galleryImagesHtml}</div>`;
-                finalHtml = finalHtml.replace('[IMAGE_GALLERY]', galleryContainerHtml);
-            }
+        
+            // Handle additional, numbered images
+            urls.slice(1).forEach((url, index) => {
+                const placeholder = `[IMAGE_${index + 2}]`; // Starts from [IMAGE_2]
+                // Use a global regex to replace all occurrences if the AI repeats a placeholder
+                const regex = new RegExp(placeholder.replace(/\[/g, '\\[').replace(/\]/g, '\\]'), 'g');
+                if (finalHtml.match(regex)) {
+                    const imageHtml = `<img src="${url}" alt="Product image ${index + 2}" style="width: 100%; height: auto; border-radius: 12px; margin-bottom: 1.5rem;" />`;
+                    finalHtml = finalHtml.replace(regex, imageHtml);
+                }
+            });
+        
             return finalHtml;
         };
 
         const handleSubmit = async () => {
-          if (!apiKey) { setError('Please set your Gemini API Key first.'); return; }
-          if (imageFiles.length === 0 || !productLink) { setError('Please provide an image and a product link.'); return; }
+          if (!apiKey) { setError('Silakan atur Kunci API Gemini Anda terlebih dahulu.'); return; }
+          if (imageFiles.length === 0 || !productLink) { setError('Harap berikan gambar dan tautan produk.'); return; }
           setIsGenerating(true); setError(null); setGeneratedPost(''); setGeneratedTags([]); setMetaTitle(''); setMetaDescription(''); setPostTitle('');
           try {
             const imageParts = imageFiles.map((file, index) => ({ mimeType: file.type, data: imageDataUrls[index]?.split(',')[1] || '' }));
@@ -749,9 +769,58 @@ Generate the JSON object now.`;
             setGeneratedPost(finalPost); setGeneratedTags(tags); setMetaTitle(metaTitle); setMetaDescription(metaDescription);
           } catch (err) {
             console.error(err);
-            setError('Failed to generate the blog post. Check your API key.');
+            setError('Gagal membuat postingan blog. Periksa kunci API Anda.');
           } finally {
             setIsGenerating(false);
+          }
+        };
+
+        const handlePreviewQuickPost = () => {
+          if (!quickPostText.trim()) {
+              setError('Silakan tempel konten postingan Anda terlebih dahulu.');
+              return;
+          }
+          setIsGenerating(true);
+          setError(null);
+
+          try {
+              const lines = quickPostText.split('\n');
+              const titleLineIndex = lines.findIndex(line => line.trim() !== '');
+              const title = titleLineIndex !== -1 ? lines[titleLineIndex].trim() : 'Postingan Tanpa Judul';
+              
+              let contentLines = titleLineIndex !== -1 ? [...lines.slice(titleLineIndex + 1)] : [...lines];
+              const endMarkerIndex = contentLines.findIndex(line => line.trim().toLowerCase() === '#end');
+              const tagsLineIndex = contentLines.findIndex(line => line.trim().toLowerCase().startsWith('#tags:'));
+
+              let finalTags = [];
+              if (tagsLineIndex !== -1) {
+                  const tagsString = contentLines[tagsLineIndex].substring(6).trim();
+                  finalTags = tagsString.split(',').map(tag => tag.trim()).filter(Boolean);
+              }
+
+              const contentEndIndex = endMarkerIndex !== -1 ? endMarkerIndex : contentLines.length;
+              const finalContentLines = contentLines.slice(0, contentEndIndex)
+                  .filter((_, index) => index !== tagsLineIndex);
+
+              const contentHtml = finalContentLines.map(line => line.trim() === '' ? '<br>' : `<p>${line}</p>`).join('\n');
+              
+              let imageHtml = '';
+              if (imageDataUrls.length > 0) {
+                  imageHtml = imageDataUrls.map((url, index) => 
+                      `<img src="${url}" alt="${title} image ${index + 1}" style="width: 100%; height: auto; border-radius: 12px; margin-bottom: 1.5rem;" />`
+                  ).join('');
+              }
+
+              setPostTitle(title);
+              setGeneratedPost(imageHtml + contentHtml);
+              setGeneratedTags(finalTags);
+              setMetaTitle(title);
+              setMetaDescription(finalContentLines.join(' ').substring(0, 160));
+          } catch (e) {
+              console.error("Error parsing quick post:", e);
+              setError("Gagal mem-parsing konten postingan. Harap periksa formatnya.");
+          } finally {
+              setIsGenerating(false);
           }
         };
         
@@ -763,7 +832,7 @@ Generate the JSON object now.`;
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="font-bold">Connecting...</span>
+                <span className="font-bold">Menghubungkan...</span>
               </div>
             );
           }
@@ -778,15 +847,15 @@ Generate the JSON object now.`;
           if (user) {
             return (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
-                  <div className="text-sm text-slate-300 text-center sm:text-left">Logged in as: <span className="font-bold text-white">{user.name} ({user.email})</span></div>
+                  <div className="text-sm text-slate-300 text-center sm:text-left">Masuk sebagai: <span className="font-bold text-white">{user.name} ({user.email})</span></div>
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                       {blogs.length > 0 ? (
                           <select value={selectedBlogId} onChange={(e) => setSelectedBlogId(e.target.value)} className="w-full bg-slate-700/50 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 text-sm">
-                              <option value="" disabled>Select a blog to post to</option>
+                              <option value="" disabled>Pilih blog untuk memposting</option>
                               {blogs.map(blog => <option key={blog.id} value={blog.id}>{blog.name}</option>)}
                           </select>
-                      ) : <p className="text-sm text-amber-400">No blogs found on this account.</p>}
-                      <button onClick={handleLogout} className="font-semibold text-sky-400 hover:text-sky-300 text-sm flex-shrink-0">Logout</button>
+                      ) : <p className="text-sm text-amber-400">Tidak ada blog yang ditemukan di akun ini.</p>}
+                      <button onClick={handleLogout} className="font-semibold text-sky-400 hover:text-sky-300 text-sm flex-shrink-0">Keluar</button>
                   </div>
               </div>
             );
@@ -795,20 +864,20 @@ Generate the JSON object now.`;
           return (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
               <div className="text-left flex-grow w-full">
-                <h3 className="font-bold text-white">Ready to publish?</h3>
-                <p className="text-sm text-slate-400">{googleClientId ? 'Connect to post directly to Blogger.' : 'First, save your Google Client ID above.'}</p>
+                <h3 className="font-bold text-white">Siap untuk publikasi?</h3>
+                <p className="text-sm text-slate-400">{googleClientId ? 'Hubungkan untuk memposting langsung ke Blogger.' : 'Pertama, simpan ID Klien Google Anda di atas.'}</p>
                 {googleClientId && <RedirectUriHelper />}
               </div>
               <div className="flex-shrink-0 w-full sm:w-auto">
                 <button onClick={handleLogin} disabled={!tokenClient || !googleClientId} className="flex items-center justify-center gap-3 w-full sm:w-auto bg-white text-slate-800 font-bold py-2.5 px-4 rounded-lg transition-all duration-300 hover:bg-slate-200 disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0">
-                    <GoogleIcon className="w-5 h-5" /> Connect to Blogger
+                    <GoogleIcon className="w-5 h-5" /> Hubungkan ke Blogger
                 </button>
               </div>
             </div>
           );
         };
 
-        const hasContent = imageFiles.length > 0 || productLink || productPrice || productDescription || generatedPost;
+        const hasContent = imageFiles.length > 0 || productLink || productPrice || productDescription || generatedPost || quickPostText;
 
         return (
           <div className="flex flex-col min-h-screen bg-slate-900 text-slate-200 font-sans">
@@ -827,27 +896,58 @@ Generate the JSON object now.`;
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                 <div className="bg-slate-800/50 p-6 rounded-2xl shadow-2xl border border-slate-700 flex flex-col gap-6">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-sky-400">1. Product Details</h2>
+                    <h2 className="text-2xl font-bold text-sky-400">1. Buat Postingan</h2>
                     {hasContent && !isGenerating && (
-                      <button onClick={handleStartNew} className="flex items-center justify-center gap-2 text-sky-400 hover:text-sky-300 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm hover:bg-sky-500/10" aria-label="Start new product">
-                        <NewProductIcon className="w-4 h-4" /> Start New
+                      <button onClick={handleStartNew} className="flex items-center justify-center gap-2 text-sky-400 hover:text-sky-300 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm hover:bg-sky-500/10" aria-label="Mulai produk baru">
+                        <NewProductIcon className="w-4 h-4" /> Mulai Baru
                       </button>
                     )}
                   </div>
+                   <div className="flex border-b border-slate-600">
+                    <button onClick={() => setActiveTab('generator')} className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === 'generator' ? 'border-b-2 border-sky-400 text-sky-400' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'}`}>
+                      Generator AI
+                    </button>
+                    <button onClick={() => setActiveTab('quick')} className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === 'quick' ? 'border-b-2 border-sky-400 text-sky-400' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'}`}>
+                      Postingan Cepat
+                    </button>
+                  </div>
+                  
                   <ImageUploader onImageChange={handleImageChange} imageUrls={imageDataUrls} onClearImages={handleClearImages} disabled={isGenerating} />
-                  <TextInput id="productLink" label="Product Link" placeholder="https://example.com/product-page" value={productLink} onChange={(e) => setProductLink(e.target.value)} disabled={isGenerating} />
-                  <TextAreaInput id="productDescription" label="About this item" placeholder="Enter key features..." value={productDescription} onChange={(e) => setProductDescription(e.target.value)} disabled={isGenerating} />
-                  <TextInput id="productPrice" label="Product Price (Optional)" placeholder="e.g., $99.99" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} disabled={isGenerating} />
-                  {error && isGenerating && <p className="text-red-400 text-sm text-center">{error}</p>}
-                  <button onClick={handleSubmit} disabled={isGenerating || !apiKey || imageFiles.length === 0 || !productLink} className="flex items-center justify-center gap-2 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed disabled:text-slate-400 shadow-lg hover:shadow-sky-500/50">
-                    {isGenerating ? 'Generating...' : <><SparklesIcon /> Generate Post</>}
-                  </button>
+                  
+                  {activeTab === 'generator' && (
+                    <div className="flex flex-col gap-6">
+                        <TextInput id="productLink" label="Tautan Produk" placeholder="https://example.com/product-page" value={productLink} onChange={(e) => setProductLink(e.target.value)} disabled={isGenerating} />
+                        <TextAreaInput id="productDescription" label="Tentang item ini" placeholder="Masukkan fitur utama..." value={productDescription} onChange={(e) => setProductDescription(e.target.value)} disabled={isGenerating} />
+                        <TextInput id="productPrice" label="Harga Produk (Opsional)" placeholder="mis., Rp 1.500.000" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} disabled={isGenerating} />
+                    </div>
+                  )}
+
+                  {activeTab === 'quick' && (
+                    <div className="flex flex-col gap-2">
+                       <label htmlFor="quickPostContent" className="text-slate-300 font-semibold">Konten Postingan</label>
+                       <p className="text-xs text-slate-400 -mt-1 mb-2">Baris pertama adalah judul. Gunakan <code>#end</code> untuk menandai akhir konten. Gunakan <code>#tags: tag1, tag2</code> untuk tag.</p>
+                       <TextAreaInput id="quickPostContent" placeholder="Tempel postingan Anda di sini..." value={quickPostText} onChange={(e) => setQuickPostText(e.target.value)} disabled={isGenerating} rows={8} />
+                    </div>
+                  )}
+
+                  {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+                  
+                   {activeTab === 'generator' && (
+                    <button onClick={handleSubmit} disabled={isGenerating || !apiKey || imageFiles.length === 0 || !productLink} className="flex items-center justify-center gap-2 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed disabled:text-slate-400 shadow-lg hover:shadow-sky-500/50">
+                        {isGenerating ? 'Membuat...' : <><SparklesIcon /> Buat Postingan</>}
+                    </button>
+                   )}
+                   {activeTab === 'quick' && (
+                    <button onClick={handlePreviewQuickPost} disabled={isGenerating || !quickPostText.trim()} className="flex items-center justify-center gap-2 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed disabled:text-slate-400 shadow-lg hover:shadow-sky-500/50">
+                        {isGenerating ? 'Memproses...' : <><EyeIcon /> Pratinjau Postingan</>}
+                    </button>
+                   )}
                 </div>
                 
                 <div className="bg-slate-800/50 p-6 rounded-2xl shadow-2xl border border-slate-700 flex flex-col">
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-indigo-400">2. Your AI-Generated Post</h2>
-                    {!isGenerating && generatedPost && <button onClick={handleSubmit} disabled={isGenerating} className="flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-3 rounded-lg transition-all duration-300 disabled:bg-slate-600 text-sm"><RefreshIcon className="w-4 h-4" /> Regenerate</button>}
+                    <h2 className="text-2xl font-bold text-indigo-400">2. Postingan Hasil Generate</h2>
+                    {!isGenerating && generatedPost && activeTab === 'generator' && <button onClick={handleSubmit} disabled={isGenerating} className="flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-3 rounded-lg transition-all duration-300 disabled:bg-slate-600 text-sm"><RefreshIcon className="w-4 h-4" /> Buat Ulang</button>}
                   </div>
                   <GeneratedPost postContent={generatedPost} isLoading={isGenerating} />
                   
@@ -856,10 +956,10 @@ Generate the JSON object now.`;
                           <BloggerPublisher accessToken={user.access_token} blogId={selectedBlogId} title={postTitle} content={generatedPost} tags={generatedTags} />
                       ) : (
                           <div className="mt-6 border-t border-slate-700 pt-4">
-                              <h3 className="text-lg font-semibold text-slate-300 mb-2">Publish to Blogger</h3>
-                              <p className="text-sm text-slate-400 mb-4">{googleClientId ? 'Connect your account to publish this post.' : 'Please save your Google Client ID to enable publishing.'}</p>
+                              <h3 className="text-lg font-semibold text-slate-300 mb-2">Publikasikan ke Blogger</h3>
+                              <p className="text-sm text-slate-400 mb-4">{googleClientId ? 'Hubungkan akun Anda untuk mempublikasikan postingan ini.' : 'Silakan simpan ID Klien Google Anda untuk mengaktifkan publikasi.'}</p>
                               <button onClick={handleLogin} disabled={!tokenClient || isLoadingBlogs || !googleClientId} className="flex items-center justify-center w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg transition-all duration-300 disabled:bg-slate-600">
-                                  {isLoadingBlogs ? 'Connecting...' : 'Connect to Publish'}
+                                  {isLoadingBlogs ? 'Menghubungkan...' : 'Hubungkan untuk Publikasi'}
                               </button>
                           </div>
                       )
